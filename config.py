@@ -22,4 +22,3 @@ class CONFIG:
     LORA_ALPHA = 8
     CACHE_DIR = "/media/data/MODELS"
     LORA_MODULES = target_modules
-    HF_TOKEN="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"
