@@ -8,6 +8,7 @@ from tqdm import tqdm
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
 from ann_classifier import ANNClassifier
+from data_prep import DataPrep
 
 MODEL_PATH = "./bert-trained"
 MODEL_SAVE_PATH = "ann_classifier.pth"
@@ -47,14 +48,7 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
 fine_tuned_model = BigBirdForSequenceClassification.from_pretrained(MODEL_PATH, num_labels = 3)
 fine_tuned_model.eval()
 
-df = pd.read_csv("dataset/train.csv")
-df.loc[:, 'prompt'] = df['prompt'].apply(process_csv)
-df.loc[:, 'response_a'] = df['response_a'].apply(process_csv)
-df.loc[:, 'response_b'] = df['response_b'].apply(process_csv)
-
-df["text"] = "User prompt: " + df["prompt"] + "\n\nModel A:\n" + df["response_a"] + "\n\nModel B:\n" + df["response_b"]
-df["label"] = np.argmax(df[["winner_model_a", "winner_model_b", "winner_tie"]].values, axis=1)
-
+df = DataPrep.perform("dataset/train.csv")
 train_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
 
 
@@ -147,8 +141,8 @@ print(f"\nAccuracy: {accuracy:.4f}")
 
 for i in range(2):
     print(f"Sample {i+1}:")
-    print(f"   Probabilities: {probabilities_np[i]}")
-    print(f"   Predicted Label: {predicted_labels[i]}\n")
+    print(f"Probabilities: {probabilities_np[i]}")
+    print(f"Predicted Label: {predicted_labels[i]}\n")
 
 from sklearn.metrics import log_loss
 

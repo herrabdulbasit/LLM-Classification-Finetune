@@ -11,6 +11,8 @@ import wandb
 import torch
 import torch.nn as nn
 from lion_pytorch import Lion
+from data_prep import DataPrep
+from trainer import MyTrainer
 
 
 def get_token_lengths(texts, tokenizer):
@@ -18,37 +20,12 @@ def get_token_lengths(texts, tokenizer):
     return [len(t) for t in input_ids]
 
 def load_data(tokenizer):
-    train = pd.read_csv('dataset/train.csv')
-
-    def process(input_str):
-        stripped_str = input_str.strip('[]')
-        sentences = [s.strip('"') for s in stripped_str.split('","')]
-        return  ' '.join(sentences)
-
-    train.loc[:, 'prompt'] = train['prompt'].apply(process)
-    train.loc[:, 'response_a'] = train['response_a'].apply(process)
-    train.loc[:, 'response_b'] = train['response_b'].apply(process)
-
-    indexes = train[(train.response_a == 'null') & (train.response_b == 'null')].index
-    train.drop(indexes, inplace=True)
-    train.reset_index(inplace=True, drop=True)
-
-    train["text"] = (
-        "[USER PROMPT]: " + train["prompt"] + "\n\n"
-        "[MODEL A]: " + train["response_a"] + "\n\n"
-        "[MODEL B]: " + train["response_b"] + "\n\n"
-        "Which response is better? (0) Model A, (1) Model B, (2) Tie"
-    )
-
-    train.loc[:, 'token_count'] = get_token_lengths(train['text'], tokenizer)
-    train.loc[:, 'label'] = np.argmax(train[['winner_model_a','winner_model_b','winner_tie']].values, axis=1)
-    train = train[train["token_count"]<= 1024]
-
-    print(f"Total {len(indexes)} Null response rows dropped")
-    print('Total train samples: ', len(train))
-
     from sklearn.model_selection import train_test_split
 
+    train = DataPrep("dataset/train.csv").perform()
+    train.loc[:, 'token_count'] = get_token_lengths(train['text'], tokenizer)
+    train = train[train["token_count"]<= 1024]
+    print('Total train samples: ', len(train))
     train, eval_df = train_test_split(train, test_size=0.1, random_state=42)
 
     return train, eval_df
@@ -61,13 +38,13 @@ def get_model():
     tokenizer.padding_side = 'right'
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=3)
 
-    '''
-    Uncomment for LoRA fine-tuning. Leave it commented for a full finetune.
+
+    #Uncomment for LoRA fine-tuning. Leave it commented for a full finetune.
 
     # LoRA configuration
     lora_config = LoraConfig(
-        r=32,
-        lora_alpha=64,
+        r=CONFIG.LORA_RANK,
+        lora_alpha=CONFIG.LORA_ALPHA,
         lora_dropout=0.0,
         target_modules=CONFIG.LORA_MODULES,
         bias="none",
@@ -76,7 +53,7 @@ def get_model():
 
     # Applying LoRA to the model
     model = get_peft_model(model, lora_config)
-    '''
+
 
     tokenizer.pad_token = tokenizer.eos_token
 
@@ -101,56 +78,5 @@ def main():
     train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True)
     eval_dataloader = DataLoader(eval_dataset, batch_size=14, shuffle=False)
 
-    def get_lion_optimizer(model):
-        return Lion(model.parameters(), lr=5e-5, weight_decay=0.0)
-
-    # Modify Trainer to use Lion optimizer
-    class LionTrainer(Trainer):
-        def create_optimizer(self):
-            self.optimizer = get_lion_optimizer(self.model)
-            return self.optimizer
-
-    wandb.init(project="llm-finetuning-llama-new-run")
-
-    training_args = TrainingArguments(
-        output_dir="./results",
-        evaluation_strategy="steps",
-        eval_steps=1000,
-        save_strategy="epoch",
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
-        gradient_accumulation_steps=8,
-        num_train_epochs=3,
-        learning_rate=5e-5,
-        weight_decay=0.0,
-        logging_dir="./logs",
-        save_total_limit=2,
-        gradient_checkpointing=True,
-        optim="adafactor",
-        report_to="wandb",
-        logging_steps=10,
-        lr_scheduler_type="cosine",
-        max_grad_norm=2.0,
-        warmup_ratio=0.1,
-        metric_for_best_model="loss",
-        greater_is_better=False
-    )
-
-    trainer = LionTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
-    )
-
-    try:
-        trainer.train(resume_from_checkpoint=False)
-        output_dir = "./googe-berta-trained"
-        trainer.save_model(output_dir)
-        tokenizer.save_pretrained(output_dir)
-
-        wandb.finish()
-    except KeyboardInterrupt:
-        wandb.finish()
-
+    trainer = MyTrainer(model, train_dataset, eval_dataset, tokenizer)
+    trainer.train()

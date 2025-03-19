@@ -9,16 +9,27 @@ target_modules = [
 ]
 
 class CONFIG:
-    NUM_EPOCHS = 1
-    BATCH_SIZE = 8
+    NUM_EPOCHS = 3
+    BATCH_SIZE = 4
     DROPOUT = 0.05 
     MODEL_NAME = "allenai/longformer-base-4096"
     SEED = 42
     MAX_LENGTH = 1024 
-    NUM_WARMUP_STEPS = 128
+    WARM_UP_RATIO = 0.1
     LR_MAX = 5e-5 
     NUM_LABELS = 3 
-    LORA_RANK = 4
+    LORA_RANK = 32
     LORA_ALPHA = 8
     CACHE_DIR = "/media/data/MODELS"
     LORA_MODULES = target_modules
+    OUTPUT_DIR = "./train_checkpoints"
+    GRADIENT_ACC_STEPS = 8
+    WEIGHT_DECAY=0.0
+    LOGGING_DIR="./logs"
+    SCHEDULER="cosine"
+    METRIC_FOR_BEST_MODEL="loss"
+    GREATER_IS_BETTER=False
+    EVAL_STRATEGY="steps"
+    EVAL_STEPS=1000
+    SAVE_STRATEGY="epoch"
+    WANDB_PROJECT="llm-finetuning-llama-new-run"
