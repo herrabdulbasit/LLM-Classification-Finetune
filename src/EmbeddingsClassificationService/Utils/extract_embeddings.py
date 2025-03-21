@@ -1,6 +1,6 @@
 import torch
 import tqdm
-import np
+import numpy as np
 
 from src.config import CONFIG
 
