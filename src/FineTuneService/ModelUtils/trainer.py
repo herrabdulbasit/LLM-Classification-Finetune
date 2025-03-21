@@ -1,6 +1,6 @@
 from lion_pytorch import Lion
 from transformers import Trainer, TrainingArguments
-from config import CONFIG
+from src.config import CONFIG
 import wandb
 
 def get_lion_optimizer(model):

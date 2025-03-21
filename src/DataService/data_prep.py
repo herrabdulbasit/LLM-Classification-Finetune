@@ -1,5 +1,10 @@
 import pandas as pd
 import numpy as np
+
+'''
+Performs Data Preparations by removing nulls, special characters
+Then also, labels the data
+'''
 class DataPrep:
     def __init__(self, file_path):
         self._file_path_ = file_path

@@ -33,3 +33,12 @@ class CONFIG:
     EVAL_STEPS=1000
     SAVE_STRATEGY="epoch"
     WANDB_PROJECT="llm-finetuning-llama-new-run"
+
+
+class ANNConfig(CONFIG):
+    BATCH_SIZE=16
+    NUM_EPOCHS=100
+    BATCH_SIZE=32
+    LR_MAX=0.0005
+    WEIGHT_DECAY=1e-4
+    CACHE_DIR="/home/abdulbasit/ann_models"
